@@ -2,19 +2,15 @@
 <html lang="en">
 <head>
     <style>
-        :root {
-            font-size: 0.5em;
-        }
         .grid {
             display: grid;
             grid-template-rows: repeat(4, 1fr);
-            gap: 0.5em;
+            gap: 0.25em;
             pointer-events: none;
         }
         .card {
             aspect-ratio: 3 / 4;
             border: 2px solid #44444a;
-            font-size: 2rem;
             display: inline-flex;
             justify-content: center;
             align-items: center;
@@ -24,20 +20,25 @@
         }
     </style>
     <meta charset="UTF-8">
-    <title>Page title</title>
+    <title>Sorting Cards</title>
 </head>
 <body>
+    <button id="start-button">Start</button>
+    <span id="time-indicator">Elapsed: 00:00.00</span>
     <div class="grid" id="grid"></div>
     <footer style="color: red; font-style: italic;">
         <p>Note: this only works on mobile with touch controls</p>
     </footer>
     <script>
         const grid = document.getElementById("grid");
+        const startButton = document.getElementById("start-button");
+        const timeIndicator = document.getElementById("time-indicator");
         
-        const cardsCount = 52;
-        const cardsArray = Array(cardsCount);
-        grid.style.gridTemplateColumns = `repeat(${Math.floor(cardsCount / 4)}, auto)`;
-        
+        var sorted;
+        var cardsArray;
+        var gameActive = false;
+        var startTime;
+                
         const swapElements = function(obj1, obj2) {
             const temp = document.createElement("div");
             obj1.parentNode.insertBefore(temp, obj1);
@@ -53,7 +54,6 @@
             return arr1.every((value, index) => value === arr2[index]);
         };
         
-        let offset = [0,0];
         const getOverlappingElement = function(target) {
             const boundingBox = target.getBoundingClientRect();
             boundingBox.x += offset[0];
@@ -90,40 +90,78 @@
             return overlappingElement;
         }
         
-        for (let i = 0; i < cardsCount; i ++) {
-            const suitIndex = Math.floor(i / (cardsCount / 4));
-            const suitText = suitIndex === 0 ? '♣️' :
-                suitIndex === 1 ? '♠️' :
-                suitIndex === 2 ? '♥️' :
-                '♦️';
-                
-            const valueIndex = i % Math.floor(cardsCount / 4);
-            const value = valueIndex === 0 ? 'A':
-                valueIndex === 10 ? 'J' :
-                valueIndex === 11 ? 'Q' :
-                valueIndex === 12 ? 'K' :
-                valueIndex + 1;
-                
-            const card = document.createElement("div");
-            card.setAttribute("draggable", "true");
-            card.setAttribute("data-value", i);
-            card.className = "card selected";
-            card.innerText = value + suitText;
+        const updateTimer = function() {
+            if (!startTime || !gameActive) { return; }
             
-            let index = Math.floor(Math.random() * cardsCount);
-            while (cardsArray[index] !== undefined) {
-                index = Math.floor(Math.random() * cardsCount);
-            }
-            cardsArray[index] = card;
-            card.setAttribute("data-index", index);
+            const now = Date.now();
+            const elapsed = now - startTime;
+            
+            const mins = Math.floor(elapsed / 60000);
+            const secs = Math.floor((elapsed % 60000) / 1000);
+            const ms = Math.floor(elapsed % 1000);
+            
+            timeIndicator.innerText = `Elapsed: ${mins}:${secs < 10 ? "0"+secs : secs}.${ms}`;
+            
+            requestAnimationFrame(updateTimer);
         }
-        grid.append(...cardsArray);
-        const sorted = [...cardsArray].sort((a, b) => {
-            return a.getAttribute("data-value") - b.getAttribute("data-value");
-        });
         
-        let touchLocation;
+        const startGame = function() {
+            if (gameActive) { return; }
+            
+            const cardsCount = 52;
+            startTime = Date.now();
+            
+            grid.innerHTML = '';
+            grid.style.gridTemplateColumns = `repeat(${Math.floor(cardsCount / 4)}, auto)`;
+            cardsArray = Array(cardsCount);
+            
+            for (let i = 0; i < cardsCount; i ++) {
+                const suitIndex = Math.floor(i / (cardsCount / 4));
+                const suitText = suitIndex === 0 ? '♣️' :
+                    suitIndex === 1 ? '♠️' :
+                    suitIndex === 2 ? '♥️' :
+                    '♦️';
+                
+                const valueIndex = i % Math.floor(cardsCount / 4);
+                const value = valueIndex === 0 ? 'A':
+                    valueIndex === 10 ? 'J' :
+                    valueIndex === 11 ? 'Q' :
+                    valueIndex === 12 ? 'K' :
+                    valueIndex + 1;
+                
+                const card = document.createElement("div");
+                card.setAttribute("draggable", "true");
+                card.setAttribute("data-value", i);
+                card.className = "card selected";
+                card.innerText = value + suitText;
+            
+                let index = Math.floor(Math.random() * cardsCount);
+                while (cardsArray[index] !== undefined) {
+                    index = Math.floor(Math.random() * cardsCount);
+                }
+                cardsArray[index] = card;
+                card.setAttribute("data-index", index);
+            }
+            grid.append(...cardsArray);
+            sorted = [...cardsArray].sort((a, b) => {
+                return a.getAttribute("data-value") - b.getAttribute("data-value");
+            });
+            
+            gameActive = true;
+            updateTimer();
+        }
+        const endGame = function() {
+            gameActive = false;
+            sorted = undefined;
+            cardsArray = undefined;
+            startTime = undefined;
+        }
+        
+        var offset = [0,0];
+        var touchLocation;
         grid.addEventListener('touchmove', function(e) {
+            if (!gameActive) { return; }
+            
             if (e.cancelable) {
                 e.preventDefault();
             } else {
@@ -143,6 +181,7 @@
             target.style.pointerEvents = "none";
         });
         grid.addEventListener('touchend', function(e) {
+            if (!gameActive) { return; }
             const target = event.target;
             target.style.position = "";
             target.style.pointerEvents = "";
@@ -171,7 +210,16 @@
             dropElement.setAttribute("data-index", targetIndex);
             
             if (arraysEqual(cardsArray, sorted)) {
+                endGame();
                 alert("You win!!");
+            }
+        });
+        
+        startButton.addEventListener("click", () => {
+            if (!gameActive) {
+                startGame();
+            } else {
+                endGame();
             }
         });
     </script>
