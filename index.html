@@ -74,32 +74,19 @@
                     elRect.top < boundingBox.bottom &&
                     elRect.right > boundingBox.left &&
                     elRect.left < boundingBox.right;
-                    
-                if (element.getAttribute("data-index") == 1) {
-                    console.log(
-                        elRect.bottom < boundingBox.top,
-                        elRect.top > boundingBox.bottom,
-                        elRect.right < boundingBox.left,
-                        elRect.left > boundingBox.right
-                    );
-                }
+                
                 if (!overlap) { continue; }
                 
-                const bbX = (boundingBox.left + boundingBox.right)/2;
-                const bbY = (boundingBox.top + boundingBox.bottom)/2;
-                
-                const elX = (elRect.left + elRect.right)/2;
-                const elY = (elRect.top + elRect.bottom)/2;
-                
-                let distance = Math.sqrt(Math.pow(bbX-elX, 2), Math.pow(bbY-elY, 2));
-                console.log(distance);
+                let distance = Math.sqrt(
+                    Math.pow(boundingBox.x-elRect.x, 2) +
+                    Math.pow(boundingBox.y-elRect.y, 2)
+                );
                 if (distance < smallestDistance) {
                     smallestDistance = distance;
                     overlappingElement = element;
                 }
             }
             
-            console.log(overlappingElement);
             return overlappingElement;
         }
         
