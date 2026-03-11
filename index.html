@@ -7,8 +7,7 @@
         }
         .grid {
             display: grid;
-            grid-template-rows: auto;
-            justify-content: start;
+            grid-template-rows: repeat(4, 1fr);
             gap: 0.5em;
             pointer-events: none;
         }
@@ -21,6 +20,7 @@
             align-items: center;
             pointer-events: auto;
             background-color: white;
+            width: 4em;
         }
     </style>
     <meta charset="UTF-8">
@@ -28,12 +28,15 @@
 </head>
 <body>
     <div class="grid" id="grid"></div>
+    <footer style="color: red; font-style: italic;">
+        <p>Note: this only works on mobile with touch controls</p>
+    </footer>
     <script>
         const grid = document.getElementById("grid");
         
         const cardsCount = 52;
         const cardsArray = Array(cardsCount);
-        grid.style.gridTemplateColumns = `repeat(${cardsCount}, auto)`;
+        grid.style.gridTemplateColumns = `repeat(${Math.floor(cardsCount / 4)}, auto)`;
         
         const swapElements = function(obj1, obj2) {
             const temp = document.createElement("div");
@@ -49,6 +52,56 @@
             if (arr1.length !== arr2.length) return false;
             return arr1.every((value, index) => value === arr2[index]);
         };
+        
+        let offset = [0,0];
+        const getOverlappingElement = function(target) {
+            const boundingBox = target.getBoundingClientRect();
+            boundingBox.x += offset[0];
+            boundingBox.y += offset[1];
+            boundingBox.left += offset[0];
+            boundingBox.right += offset[0];
+            boundingBox.top += offset[1];
+            boundingBox.bottom += offset[1];
+            
+            let overlappingElement;
+            let smallestDistance = Infinity;
+            for (element of cardsArray) {
+                if (element === target) { continue; }
+                const elRect = element.getBoundingClientRect();
+
+                const overlap =
+                    elRect.bottom > boundingBox.top &&
+                    elRect.top < boundingBox.bottom &&
+                    elRect.right > boundingBox.left &&
+                    elRect.left < boundingBox.right;
+                    
+                if (element.getAttribute("data-index") == 1) {
+                    console.log(
+                        elRect.bottom < boundingBox.top,
+                        elRect.top > boundingBox.bottom,
+                        elRect.right < boundingBox.left,
+                        elRect.left > boundingBox.right
+                    );
+                }
+                if (!overlap) { continue; }
+                
+                const bbX = (boundingBox.left + boundingBox.right)/2;
+                const bbY = (boundingBox.top + boundingBox.bottom)/2;
+                
+                const elX = (elRect.left + elRect.right)/2;
+                const elY = (elRect.top + elRect.bottom)/2;
+                
+                let distance = Math.sqrt(Math.pow(bbX-elX, 2), Math.pow(bbY-elY, 2));
+                console.log(distance);
+                if (distance < smallestDistance) {
+                    smallestDistance = distance;
+                    overlappingElement = element;
+                }
+            }
+            
+            console.log(overlappingElement);
+            return overlappingElement;
+        }
         
         for (let i = 0; i < cardsCount; i ++) {
             const suitIndex = Math.floor(i / (cardsCount / 4));
@@ -83,7 +136,6 @@
         });
         
         let touchLocation;
-        let offset = [0,0];
         grid.addEventListener('touchmove', function(e) {
             if (e.cancelable) {
                 e.preventDefault();
@@ -110,10 +162,7 @@
             if (!touchLocation) {
                 return;
             }
-            const dropElement = document.elementFromPoint(
-                touchLocation.pageX,
-                touchLocation.pageY
-            );
+            const dropElement = getOverlappingElement(target);
             
             touchLocation = undefined;
             offset = [0,0];
