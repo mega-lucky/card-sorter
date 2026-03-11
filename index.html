@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <style>
+        :root {
+            font-size: 0.5em;
+        }
+        .grid {
+            display: grid;
+            grid-template-rows: auto;
+            justify-content: start;
+            gap: 0.5em;
+            pointer-events: none;
+        }
+        .card {
+            aspect-ratio: 3 / 4;
+            border: 2px solid #44444a;
+            font-size: 2rem;
+            display: inline-flex;
+            justify-content: center;
+            align-items: center;
+            pointer-events: auto;
+            background-color: white;
+        }
+    </style>
+    <meta charset="UTF-8">
+    <title>Page title</title>
+</head>
+<body>
+    <div class="grid" id="grid"></div>
+    <script>
+        const grid = document.getElementById("grid");
+        
+        const cardsCount = 52;
+        const cardsArray = Array(cardsCount);
+        grid.style.gridTemplateColumns = `repeat(${cardsCount}, auto)`;
+        
+        const swapElements = function(obj1, obj2) {
+            const temp = document.createElement("div");
+            obj1.parentNode.insertBefore(temp, obj1);
+            obj2.parentNode.insertBefore(obj1, obj2);
+            temp.parentNode.insertBefore(obj2, temp);
+            temp.parentNode.removeChild(temp);
+        }
+        const swapCardArrayItems = function(index1, index2) {
+            [cardsArray[index1], cardsArray[index2]] = [cardsArray[index2], cardsArray[index1]];
+        }
+        const arraysEqual = function(arr1, arr2) {
+            if (arr1.length !== arr2.length) return false;
+            return arr1.every((value, index) => value === arr2[index]);
+        };
+        
+        for (let i = 0; i < cardsCount; i ++) {
+            const suitIndex = Math.floor(i / (cardsCount / 4));
+            const suitText = suitIndex === 0 ? '♣️' :
+                suitIndex === 1 ? '♠️' :
+                suitIndex === 2 ? '♥️' :
+                '♦️';
+                
+            const valueIndex = i % Math.floor(cardsCount / 4);
+            const value = valueIndex === 0 ? 'A':
+                valueIndex === 10 ? 'J' :
+                valueIndex === 11 ? 'Q' :
+                valueIndex === 12 ? 'K' :
+                valueIndex + 1;
+                
+            const card = document.createElement("div");
+            card.setAttribute("draggable", "true");
+            card.setAttribute("data-value", i);
+            card.className = "card selected";
+            card.innerText = value + suitText;
+            
+            let index = Math.floor(Math.random() * cardsCount);
+            while (cardsArray[index] !== undefined) {
+                index = Math.floor(Math.random() * cardsCount);
+            }
+            cardsArray[index] = card;
+            card.setAttribute("data-index", index);
+        }
+        grid.append(...cardsArray);
+        const sorted = [...cardsArray].sort((a, b) => {
+            return a.getAttribute("data-value") - b.getAttribute("data-value");
+        });
+        
+        let touchLocation;
+        let offset = [0,0];
+        grid.addEventListener('touchmove', function(e) {
+            if (e.cancelable) {
+                e.preventDefault();
+            } else {
+                return;
+            }
+            const target = e.target;
+        
+            const deltaX = touchLocation ? e.targetTouches[0].pageX - touchLocation.pageX : 0;
+            const deltaY = touchLocation ? e.targetTouches[0].pageY - touchLocation.pageY : 0;
+            offset[0] += deltaX;
+            offset[1] += deltaY;
+            touchLocation = e.targetTouches[0]; 
+
+            target.style.position = "relative";
+            target.style.left = offset[0] + 'px';
+            target.style.top = offset[1] + 'px';
+            target.style.pointerEvents = "none";
+        });
+        grid.addEventListener('touchend', function(e) {
+            const target = event.target;
+            target.style.position = "";
+            target.style.pointerEvents = "";
+            if (!touchLocation) {
+                return;
+            }
+            const dropElement = document.elementFromPoint(
+                touchLocation.pageX,
+                touchLocation.pageY
+            );
+            
+            touchLocation = undefined;
+            offset = [0,0];
+            
+            target.style.position = "";
+            target.style.pointerEvents = "";
+            
+            if (!dropElement || ![...grid.children].includes(dropElement)) {
+                return;
+            }
+            
+            const targetIndex = target.getAttribute("data-index");
+            const dropIndex = dropElement.getAttribute("data-index");
+            
+            swapElements(dropElement, target);
+            swapCardArrayItems(targetIndex, dropIndex);
+            
+            target.setAttribute("data-index", dropIndex);
+            dropElement.setAttribute("data-index", targetIndex);
+            
+            if (arraysEqual(cardsArray, sorted)) {
+                alert("You win!!");
+            }
+        });
+    </script>
+</body>
+</html>
